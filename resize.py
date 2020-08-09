@@ -8,6 +8,9 @@ from line_profiler import LineProfiler
 
 profile = LineProfiler()
 
+bl_Normalize = True
+bl_Trans= True
+
 module = SourceModule("""
 
 __device__ float lerp1d(int a, int b, float w)
@@ -34,6 +37,52 @@ __device__ float lerp2d(int f00, int f01, int f10, int f11,
     return r;
 }
 
+__global__ void Transpose(unsigned char *odata, const unsigned char *idata)
+{
+    int H = blockDim.x * gridDim.x; // # dst_height
+    int W = blockDim.y * gridDim.y; // # dst_width 
+    int h = blockDim.x * blockIdx.x + threadIdx.x;  // 32 * bkIdx[0:18] + tdIdx; [0,607]   # x / h-th row
+    int w = blockDim.y * blockIdx.y + threadIdx.y;  // 32 * bkIdx[0:18] + tdIdx; [0,607]   # y / w-th col
+    int C = 3; // # ChannelDim
+    int c = blockIdx.z % 3 ; // [0,2] # ChannelIdx
+    int n = blockIdx.z / 3 ; // [0 , Batch size-1], # BatchIdx
+
+    long src_idx = n * (H * W * C) + 
+                    h * (W * C) +
+                    w * C +
+                    c;
+
+    long dst_idx = n * (C * H * W) +
+                    c * (H * W)+
+                    h * W+
+                    w;
+
+    odata[dst_idx] = idata[src_idx];
+}
+
+__global__ void Transpose_and_normalise(float *odata, const unsigned char *idata)
+{
+    int H = blockDim.x * gridDim.x; // # dst_height
+    int W = blockDim.y * gridDim.y; // # dst_width 
+    int h = blockDim.x * blockIdx.x + threadIdx.x;  // 32 * bkIdx[0:18] + tdIdx; [0,607]   # x / h-th row
+    int w = blockDim.y * blockIdx.y + threadIdx.y;  // 32 * bkIdx[0:18] + tdIdx; [0,607]   # y / w-th col
+    int C = 3; // # ChannelDim
+    int c = blockIdx.z % 3 ; // [0,2] # ChannelIdx
+    int n = blockIdx.z / 3 ; // [0 , Batch size-1], # BatchIdx
+
+    long src_idx = n * (H * W * C) + 
+                    h * (W * C) +
+                    w * C +
+                    c;
+
+    long dst_idx = n * (C * H * W) +
+                    c * (H * W)+
+                    h * W+
+                    w;
+
+    odata[dst_idx] = idata[src_idx]/255.0;
+}
+
 __global__ void YoloResize(unsigned char* src_img, unsigned char* dst_img, 
                        int src_h, int src_w, 
                        float stride_h, float stride_w)
@@ -46,11 +95,6 @@ __global__ void YoloResize(unsigned char* src_img, unsigned char* dst_img,
     int c = blockIdx.z % 3 ; // [0,2] # ChannelIdx
     int n = blockIdx.z / 3 ; // [0 , Batch size-1], # BatchIdx
     
-    //int idx = n * (C * H * W) +
-    //          c * (H * W)+
-    //          h * W +
-    //          w;
-
     int idx = n * (H * W * C) + 
               h * (W * C) +
               w * C +
@@ -94,18 +138,19 @@ __global__ void YoloResize(unsigned char* src_img, unsigned char* dst_img,
 # block = (32, 32, 1)   blockDim | threadIdx 
 # grid = (19,19,3))     gridDim  | blockIdx
 
-# resize_ker = module.get_function("device_bilinearResize")
 YoloResizeKer = module.get_function("YoloResize")
+TransposeKer = module.get_function("Transpose")
+TransNorKer = module.get_function("Transpose_and_normalise")
 
 @profile
 def gpu_resize(input_img: np.ndarray):
     """
     Resize the batch image to (608,608) 
     and Convert NHWC to NCHW
+    pass the gpu array to normalize the pixel ( divide by 255)
 
-    Application orientation**
+    Application oriented
 
-    Next: pass the gpu array to normalize the pixel ( divide by 255)
     input_img : batch input, format: NHWC , recommend RGB. *same as the NN input format 
                 input must be 3 channel, kernel set ChannelDim as 3.
     out : batch resized array, format: NCHW , same as intput channel
@@ -124,10 +169,17 @@ def gpu_resize(input_img: np.ndarray):
     cuda.memcpy_htod(inp["device"], inp["host"])
 
     # output data
-    # out = {"host":np.zeros(shape=(batch,dst_h,dst_w,channel), dtype=np.uint8)}  # N H W C
-    out = {"host":np.zeros(shape=(batch,dst_h,dst_w,channel), dtype=np.uint8)}  # N C H W
+    out = {"host":np.zeros(shape=(batch,dst_h,dst_w,channel), dtype=np.uint8)}  # N H W C
     out["device"] = cuda.mem_alloc(out["host"].nbytes)
     cuda.memcpy_htod(out["device"], out["host"])
+    #Transpose (and Normalize)
+    if bl_Normalize or bl_Trans:
+        if bl_Normalize:
+            trans = {"host":np.zeros(shape=(batch,channel,dst_h,dst_w), dtype=np.float32)}  # N C H W
+        else:
+            trans = {"host":np.zeros(shape=(batch,channel,dst_h,dst_w), dtype=np.uint8)}  # N C H W
+        trans["device"] = cuda.mem_alloc(trans["host"].nbytes)
+        cuda.memcpy_htod(trans["device"], trans["host"])
 
     # init resize , store kernel in cache
     YoloResizeKer(inp["device"], out["device"], 
@@ -138,7 +190,7 @@ def gpu_resize(input_img: np.ndarray):
 
     # ========= Testing =========
 
-    for _ in range(100):
+    for _ in range(10):
         YoloResizeKer(inp["device"], out["device"], 
                         np.int32(src_h), np.int32(src_w),
                         np.float32(src_h/dst_h), np.float32(src_w/dst_w),
@@ -146,13 +198,27 @@ def gpu_resize(input_img: np.ndarray):
                         grid=(19,19,3))
 
     # ========= Copy out result =========
-    cuda.memcpy_dtoh(out["host"], out["device"])
-    return out["host"]
+
+    if bl_Normalize:
+        TransNorKer(trans["device"],out["device"],
+                    block=(32, 32, 1),
+                    grid=(19,19,3))
+        cuda.memcpy_dtoh(trans["host"], trans["device"])
+        return trans["host"]
+    elif bl_Trans:
+        TransposeKer(trans["device"],out["device"],
+                    block=(32, 32, 1),
+                    grid=(19,19,3))
+        cuda.memcpy_dtoh(trans["host"], trans["device"])
+        return trans["host"]
+    else:
+        cuda.memcpy_dtoh(out["host"], out["device"])
+        return out["host"]
 
 if __name__ == "__main__":
     grid = 19
     block = 32
-    batch = 1
+    batch = 2
 
     img = cv2.resize(cv2.imread("trump.jpg"),(1080,1920))
     img = np.tile(img,[batch,1,1,1])
@@ -160,7 +226,10 @@ if __name__ == "__main__":
 
     pix = gpu_resize(img)
     print(pix.shape)
+    pix2 = np.transpose(pix,[0,2,3,1])
+    print(pix2.shape)
+    # cv2.imwrite("trans.jpg", pix2[0])
 
-    profile.print_stats()
-    print(pix.shape)
-    cv2.imwrite("pycuda_outpuut.jpg", pix[0])
+    # profile.print_stats()
+    # print(pix.shape)
+    # cv2.imwrite("pycuda_outpuut.jpg", pix[0])
