@@ -8,8 +8,8 @@ from line_profiler import LineProfiler
 
 profile = LineProfiler()
 
-bl_Normalize = True
-bl_Trans= True
+bl_Normalize = 1
+bl_Trans= 1
 
 module = SourceModule("""
 
@@ -163,21 +163,38 @@ def gpu_resize(input_img: np.ndarray):
     # Mem Allocation
     # input data 
     input_img = input_img.astype(np.uint8)
-    inp = {"host":input_img}
-    inp["device"] = cuda.mem_alloc(input_img.nbytes)
-    print(input_img.nbytes)
+    #  = = = = = = Global memory = = = = = = 
+    # inp = {"host":input_img}
+    # inp["device"] = cuda.mem_alloc(input_img.nbytes)
+    #  = = = = = = Pagelock emory = = = = = = 
+    inp = {"host":cuda.pagelocked_empty_like(input_img,mem_flags=cuda.host_alloc_flags.DEVICEMAP)}
+    inp["device"] = cuda.mem_alloc(inp["host"].nbytes)
     cuda.memcpy_htod(inp["device"], inp["host"])
 
     # output data
-    out = {"host":np.zeros(shape=(batch,dst_h,dst_w,channel), dtype=np.uint8)}  # N H W C
+    #  = = = = = = Global memory = = = = = = 
+    # out = {"host":np.zeros(shape=(batch,dst_h,dst_w,channel), dtype=np.uint8)}  # N H W C
+    # out["device"] = cuda.mem_alloc(out["host"].nbytes)
+    #  = = = = = = Pagelock emory = = = = = = 
+    out = {"host":cuda.pagelocked_zeros(shape=(batch,dst_h,dst_w,channel), 
+                                        dtype=np.uint8,
+                                        )}
     out["device"] = cuda.mem_alloc(out["host"].nbytes)
+
+
     cuda.memcpy_htod(out["device"], out["host"])
     #Transpose (and Normalize)
     if bl_Normalize or bl_Trans:
         if bl_Normalize:
-            trans = {"host":np.zeros(shape=(batch,channel,dst_h,dst_w), dtype=np.float32)}  # N C H W
+            # trans = {"host":np.zeros(shape=(batch,channel,dst_h,dst_w), dtype=np.float32)}  # N C H W
+            trans = {"host":cuda.pagelocked_zeros(shape=(batch,channel,dst_h,dst_w), 
+                                                  dtype=np.float32,
+                                                  mem_flags=cuda.host_alloc_flags.DEVICEMAP)}  # N C H W
         else:
-            trans = {"host":np.zeros(shape=(batch,channel,dst_h,dst_w), dtype=np.uint8)}  # N C H W
+            # trans = {"host":np.zeros(shape=(batch,channel,dst_h,dst_w), dtype=np.uint8)}  # N C H W
+            trans = {"host":cuda.pagelocked_zeros(shape=(batch,channel,dst_h,dst_w), 
+                                                  dtype=np.uint8,
+                                                  mem_flags=cuda.host_alloc_flags.DEVICEMAP)}
         trans["device"] = cuda.mem_alloc(trans["host"].nbytes)
         cuda.memcpy_htod(trans["device"], trans["host"])
 
@@ -226,8 +243,9 @@ if __name__ == "__main__":
 
     pix = gpu_resize(img)
     print(pix.shape)
-    pix2 = np.transpose(pix,[0,2,3,1])
-    print(pix2.shape)
+    if bl_Normalize or bl_Trans:
+        pix2 = np.transpose(pix,[0,2,3,1])
+        print(pix2.shape)
     # cv2.imwrite("trans.jpg", pix2[0])
 
     # profile.print_stats()
