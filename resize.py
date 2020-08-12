@@ -8,8 +8,9 @@ from line_profiler import LineProfiler
 
 profile = LineProfiler()
 
-bl_Normalize = 1
-bl_Trans= 1
+bl_Normalize = 0
+bl_Trans = 1
+pagelock = 1
 
 module = SourceModule("""
 
@@ -156,6 +157,8 @@ def gpu_resize(input_img: np.ndarray):
     out : batch resized array, format: NCHW , same as intput channel
     """
     # ========= Init Params =========
+    stream = cuda.Stream()
+
     # convert to array
     batch, src_h, src_w, channel = input_img.shape
     dst_h, dst_w = 608, 608
@@ -163,40 +166,50 @@ def gpu_resize(input_img: np.ndarray):
     # Mem Allocation
     # input data 
     input_img = input_img.astype(np.uint8)
-    #  = = = = = = Global memory = = = = = = 
-    # inp = {"host":input_img}
-    # inp["device"] = cuda.mem_alloc(input_img.nbytes)
-    #  = = = = = = Pagelock emory = = = = = = 
-    inp = {"host":cuda.pagelocked_empty_like(input_img,mem_flags=cuda.host_alloc_flags.DEVICEMAP)}
+    if pagelock: #  = = = = = = Pagelock emory = = = = = = 
+        inp = {"host":cuda.pagelocked_empty_like(input_img,
+                                                 mem_flags=cuda.host_alloc_flags.DEVICEMAP)}
+        inp["host"] = input_img
+    else: #  = = = = = = Global memory = = = = = = 
+        inp = {"host":input_img}
+        inp["device"] = cuda.mem_alloc(input_img.nbytes)
+
+    
     inp["device"] = cuda.mem_alloc(inp["host"].nbytes)
-    cuda.memcpy_htod(inp["device"], inp["host"])
+    cuda.memcpy_htod_async(inp["device"], inp["host"],stream)
+
 
     # output data
-    #  = = = = = = Global memory = = = = = = 
-    # out = {"host":np.zeros(shape=(batch,dst_h,dst_w,channel), dtype=np.uint8)}  # N H W C
-    # out["device"] = cuda.mem_alloc(out["host"].nbytes)
-    #  = = = = = = Pagelock emory = = = = = = 
-    out = {"host":cuda.pagelocked_zeros(shape=(batch,dst_h,dst_w,channel), 
+    if pagelock: #  = = = = = = Pagelock emory = = = = = = 
+        out = {"host":cuda.pagelocked_zeros(shape=(batch,dst_h,dst_w,channel), 
                                         dtype=np.uint8,
-                                        )}
+                                        mem_flags=cuda.host_alloc_flags.DEVICEMAP)}
+    else: #  = = = = = = Global memory = = = = = = 
+        out = {"host":np.zeros(shape=(batch,dst_h,dst_w,channel), dtype=np.uint8)}  # N H W C
+    
     out["device"] = cuda.mem_alloc(out["host"].nbytes)
+    cuda.memcpy_htod_async(out["device"], out["host"],stream)
 
 
-    cuda.memcpy_htod(out["device"], out["host"])
     #Transpose (and Normalize)
     if bl_Normalize or bl_Trans:
         if bl_Normalize:
-            # trans = {"host":np.zeros(shape=(batch,channel,dst_h,dst_w), dtype=np.float32)}  # N C H W
-            trans = {"host":cuda.pagelocked_zeros(shape=(batch,channel,dst_h,dst_w), 
-                                                  dtype=np.float32,
-                                                  mem_flags=cuda.host_alloc_flags.DEVICEMAP)}  # N C H W
+            if pagelock:
+                trans = {"host":cuda.pagelocked_zeros(shape=(batch,channel,dst_h,dst_w), 
+                                                      dtype=np.float32,
+                                                      mem_flags=cuda.host_alloc_flags.DEVICEMAP)}  # N C H W
+            else:
+                trans = {"host":np.zeros(shape=(batch,channel,dst_h,dst_w), dtype=np.float32)}  # N C H W
         else:
-            # trans = {"host":np.zeros(shape=(batch,channel,dst_h,dst_w), dtype=np.uint8)}  # N C H W
-            trans = {"host":cuda.pagelocked_zeros(shape=(batch,channel,dst_h,dst_w), 
-                                                  dtype=np.uint8,
-                                                  mem_flags=cuda.host_alloc_flags.DEVICEMAP)}
+            if pagelock:
+                trans = {"host":cuda.pagelocked_zeros(shape=(batch,channel,dst_h,dst_w), 
+                                                      dtype=np.uint8,
+                                                      mem_flags=cuda.host_alloc_flags.DEVICEMAP)}
+            else:
+                trans = {"host":np.zeros(shape=(batch,channel,dst_h,dst_w), dtype=np.uint8)}  # N C H W
+
         trans["device"] = cuda.mem_alloc(trans["host"].nbytes)
-        cuda.memcpy_htod(trans["device"], trans["host"])
+        cuda.memcpy_htod_async(trans["device"], trans["host"],stream)
 
     # init resize , store kernel in cache
     YoloResizeKer(inp["device"], out["device"], 
@@ -212,24 +225,27 @@ def gpu_resize(input_img: np.ndarray):
                         np.int32(src_h), np.int32(src_w),
                         np.float32(src_h/dst_h), np.float32(src_w/dst_w),
                         block=(32, 32, 1),
-                        grid=(19,19,3))
+                        grid=(19,19,3*batch))
 
     # ========= Copy out result =========
 
     if bl_Normalize:
         TransNorKer(trans["device"],out["device"],
                     block=(32, 32, 1),
-                    grid=(19,19,3))
-        cuda.memcpy_dtoh(trans["host"], trans["device"])
+                    grid=(19,19,3*batch))
+        cuda.memcpy_dtoh_async(trans["host"], trans["device"],stream)
+        stream.synchronize()
         return trans["host"]
     elif bl_Trans:
         TransposeKer(trans["device"],out["device"],
                     block=(32, 32, 1),
-                    grid=(19,19,3))
-        cuda.memcpy_dtoh(trans["host"], trans["device"])
+                    grid=(19,19,3*batch))
+        cuda.memcpy_dtoh_async(trans["host"], trans["device"],stream)
+        stream.synchronize()
         return trans["host"]
     else:
-        cuda.memcpy_dtoh(out["host"], out["device"])
+        cuda.memcpy_dtoh_async(out["host"], out["device"],stream)
+        stream.synchronize()
         return out["host"]
 
 if __name__ == "__main__":
@@ -238,15 +254,17 @@ if __name__ == "__main__":
     batch = 2
 
     img = cv2.resize(cv2.imread("trump.jpg"),(1080,1920))
+    # img = cv2.imread("trump.jpg")
     img = np.tile(img,[batch,1,1,1])
 
 
     pix = gpu_resize(img)
     print(pix.shape)
     if bl_Normalize or bl_Trans:
-        pix2 = np.transpose(pix,[0,2,3,1])
-        print(pix2.shape)
-    # cv2.imwrite("trans.jpg", pix2[0])
+        pix = np.transpose(pix,[0,2,3,1])
+        print(pix.shape)
+    print(pix)
+    cv2.imwrite("trans.jpg", pix[0])
 
     # profile.print_stats()
     # print(pix.shape)
