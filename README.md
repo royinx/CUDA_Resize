@@ -27,7 +27,7 @@ Cons:
 
 ---
 ### Build 
-Dockerfile is for development with OpenCV in C
+
 ```bash
 git clone https://github.com/royinx/CUDA_Resize.git 
 cd CUDA_Resize
@@ -44,3 +44,6 @@ python3 lerp.py
 nvcc resize_ker.cu -o resize.o && ./resize.o
 
 ```
+Remark: Development platform is in dockerfile.opencv with OpenCV in C for debugging
+
+Function Working well in pycuda container, you dont need to build OpenCV.
