@@ -9,7 +9,8 @@ RUN apt update && \
     apt install -y \
         libsm6 \
         libxext6 \
-        libxrender1
+        libxrender1 \
+        libgl1-mesa-glx
 
 # Python:
 RUN python3 -m pip install opencv-python \
