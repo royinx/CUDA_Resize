@@ -32,9 +32,9 @@ __global__ void GPU_validation(void)
 }
 
 __global__ void cuRESIZE(unsigned char* src_img, unsigned char* dst_img, 
-    int src_h, int src_w, 
-    int dst_h, int dst_w,
-    float stride_h, float stride_w)
+    const int src_h, const int src_w, 
+    const int dst_h, const int dst_w,
+    const float stride_h, const float stride_w)
 {
     /* 
     Input: 
@@ -46,15 +46,19 @@ __global__ void cuRESIZE(unsigned char* src_img, unsigned char* dst_img,
 
     */
 
-    int N = gridDim.y; // batch size
-    int n = blockIdx.y; // batch number
-    int C = gridDim.z; // channel 
-    int c = blockIdx.z; // channel number
+    // int const N = gridDim.y; // batch size
+    int const n = blockIdx.y; // batch number
+    int const C = gridDim.z; // channel 
+    int const c = blockIdx.z; // channel number
     long idx = n * blockDim.x * gridDim.x * C + 
               threadIdx.x * gridDim.x * C +
               blockIdx.x * C+
               c;
-    if (idx >= dst_h* dst_w * C * N){return;} // some overhead threads in each image process, 
+    
+    // some overhead threads in each image process
+    // when thread idx in one image exceed one image size return;
+    if (idx%(blockDim.x * gridDim.x * C) >= dst_h* dst_w * C){return;} 
+
     /*
     Now implementation : 
     ( (1024 * int(DST_SIZE/3/1024)+1) - (src_h * src_w) )* N
@@ -64,6 +68,7 @@ __global__ void cuRESIZE(unsigned char* src_img, unsigned char* dst_img,
     dim3 dimGrid(int(DST_SIZE*batch/3/1024)+1,1,3);
 
     */
+
     int H = dst_h;
     int W = dst_w;
 
@@ -76,7 +81,7 @@ __global__ void cuRESIZE(unsigned char* src_img, unsigned char* dst_img,
     centroid_w = stride_w * (w + 0.5); // 
 
     // unsigned long = 4,294,967,295 , up to (1080p,RGB)*600 imgs
-    unsigned long f00,f01,f10,f11;
+    long f00,f01,f10,f11;
 
     int src_h_idx = lroundf(centroid_h)-1;
     int src_w_idx = lroundf(centroid_w)-1;
@@ -102,131 +107,21 @@ __global__ void cuRESIZE(unsigned char* src_img, unsigned char* dst_img,
           (src_h_idx+1) * src_w * C +
           (src_w_idx+1) * C +
           c;
-          
-    // bool bl_a = (f01 == (f00 + 3));
-    // bool bl_b = (f10 == (f00 + src_w * 3));
-    // bool bl_c = (f11 == (f00 + src_w * 3 + 3));
-    // printf("%d, %d, %d | %d, %d, %d | %d\n", bl_a,bl_b,bl_c, f01-f00, f10-f00,f11-f00, src_w);
-    // printf("%d, %d, %d, %d\n", src_img[f00],src_img[f01],src_img[f10],src_img[f11]);
-    // printf("%ld, %ld, %ld, %ld\n", f00, f01,f10,f11);
-
-    // printf("GPU has been activated, %d, %d, %d\n", idx, idx/W, idx%W);
-    if (f00 >= src_h_idx * src_w * C )
-    {
-        if (src_h_idx >= 1080){
-            printf("%d, %d, %d, %d | %ld\n", n * src_h * src_w * C , 
-                                            src_h_idx * src_w * C, 
-                                            src_w_idx * C ,
-                                            c,
-                                            f00);
-            printf("%d, cent: %.6f, stride: %.6f, h:%d\n", src_h_idx, centroid_h, stride_h,h);
-        }
+    int rs;   
+    if (int(f10/ (src_h * src_w * C)) > n ){
+        centroid_w = (1 + lroundf(centroid_w) - centroid_w)/2;
+        rs = lroundf(lerp1d(f00,f01,centroid_w));
+    }else{
+        rs = lroundf(lerp2d(src_img[f00], src_img[f01], src_img[f10], src_img[f11], 
+            centroid_h, centroid_w));
     }
-    // printf("%ld\n",idx);
-    // printf("%d, %d, %d, %d \n", src_img[f00], src_img[f01], src_img[f10], src_img[f11]);
-    printf("%d\n",h);
-    if (h>600){
-        printf("src_h_idx:%d , h: %d | src_w_idx:%d , w: %d\n",src_h_idx,h,src_w_idx,w);
-        printf("%d, %d, %d, %d \n", src_img[f00], src_img[f01], src_img[f10], src_img[f11]);
-        // printf("%d, %d, %d, %d\n", f00,,,);
-    }
-    int rs = lroundf(lerp2d(src_img[f00], src_img[f01], src_img[f10], src_img[f11], 
-                    centroid_h, centroid_w));
-    // int rs = idx%256;
-    // int rs = c;
-
-    // printf("rs: %d | centroid: h:%f, w:%f | h: %d, w: %d | %d, %d, %d , %d | %d, %d | %d, %d, %d, %d \n", rs, centroid_h, centroid_w, src_h_idx, src_w_idx, f00,f01,f10,f11, C, c, src_img[f00], src_img[f01], src_img[f10], src_img[f11]);
-    // printf("rs: %d | stride h: %f , w: %f  | centroid: h:%f, w:%f| h: %d, w: %d | %d, %d, %d , %d | %d, %d | %d, %d, %d, %d \n", rs, stride_h, stride_w, centroid_h, centroid_w, src_h_idx, src_w_idx, f00,f01,f10,f11, C, c, src_img[f00], src_img[f01], src_img[f10], src_img[f11]);
-
-    dst_img[idx] = (unsigned char)rs;
-}
-
-__global__ void tester(unsigned char* src_img, unsigned char* dst_img, 
-                       int src_h, int src_w, 
-                       int dst_h, int dst_w,
-                       float stride_h, float stride_w)
-{
-    int H = blockDim.x * gridDim.x; // # dst_DST_HEIGHT
-    int W = blockDim.y * gridDim.y; // # dst_DST_WIDTH 
-    int h = blockDim.x * blockIdx.x + threadIdx.x;  // 32 * bkIdx[0:18] + tdIdx; [0,607]   # x / h-th row
-    int w = blockDim.y * blockIdx.y + threadIdx.y;  // 32 * bkIdx[0:18] + tdIdx; [0,607]   # y / w-th col
-    int C = 3; // # ChannelDim
-    int c = blockIdx.z % 3 ; // [0,2] # ChannelIdx
-    int n = blockIdx.z / 3 ; // [0 , Batch size-1], # BatchIdx
-    int N = gridDim.z / 3 ;
     
-    // printf("%d(%d), %d(%d), %d(%d), %d(%d) \n",n,N,c,C,h,H,w,W);
-    printf("%d, %d, %d | %d, %d, %d \n",blockDim.x,blockDim.y,blockDim.z,gridDim.x,gridDim.y,gridDim.z);
-    // idx = NHWC = n*(HWC) + h*(WC) + w*C + c;
-    int idx = n * (H * W * C) + 
-              h * (W * C) +
-              w * C +
-              c;
-    
-    // idx = NCHW = n*(CHW) + c*(HW) + h*W + w
-    // int idx = n * (C * H * W) +
-    //           c * (H * W)+
-    //           h * W+
-    //           w;
+    long dst_idx = n * (H * W * C) + 
+                    h * (W * C) +
+                    w * C +
+                    c;
 
-    // int idx = x * blockDim.y * gridDim.y * gridDim.z + y * gridDim.z + z; // x * 608(DST_WIDTH) * 3(channel) + y * 3(channel) + [0,2]
-    
-    float centroid_h, centroid_w;  
-    centroid_h = stride_h * (h + 0.5); // h w c -> x, y, z : 1080 , 1920 , 3
-    centroid_w = stride_w * (w + 0.5); // 
-
-    int f00,f01,f10,f11;
-
-    int src_h_idx = lroundf(centroid_h)-1;
-    int src_w_idx = lroundf(centroid_w)-1;
-    if (src_h_idx<0){src_h_idx=0;}
-    if (src_w_idx<0){src_w_idx=0;}
-    // printf("h:%d w:%d\n",src_h_idx,src_w_idx);
-
-    // idx = NHWC = n*(HWC) + h*(WC) + w*C + c;
-    f00 = n * src_h * src_w * C + 
-          src_h_idx * src_w * C + 
-          src_w_idx * C +
-          c;
-    f01 = n * src_h * src_w * C +
-          src_h_idx * src_w * C +
-          (src_w_idx+1) * C +
-          c;
-    f10 = n * src_h * src_w * C +
-          (src_h_idx+1) * src_w * C +
-          src_w_idx * C +
-          c;
-    f11 = n * src_h * src_w * C + 
-          (src_h_idx+1) * src_w * C +
-          (src_w_idx+1) * C +
-          c;
-          
-    // bool bl_a = (f01 == (f00 + 3));
-    // bool bl_b = (f10 == (f00 + src_w * 3));
-    // bool bl_c = (f11 == (f00 + src_w * 3 + 3));
-    // printf("%d, %d, %d | %d, %d, %d | %d\n", bl_a,bl_b,bl_c, f01-f00, f10-f00,f11-f00, src_w);
-
-
-
-    // printf("h: %d, w: %d | %d, %d, %d , %d | %d, %d | %d, %d, %d, %d \n", src_h_idx, src_w_idx, f00,f01,f10,f11, C, c, src_img[f00], src_img[f01], src_img[f10], src_img[f11]);
-
-    
-    // lerp2d(src_img[f00], src_img[f01], src_img[f10], src_img[f11],);
-    // printf("%d, %d | %d, %d, %d, %d \n", src_h_idx, src_w_idx, src_img[f00], src_img[f01], src_img[f10], src_img[f11]);
-
-    // float temp = lerp2d(src_img[f00], src_img[f01], src_img[f10], src_img[f11], 
-    //                     centroid_y, centroid_x);
-    // printf("z: %d | %f, %f | %f | %d, %d, %d, %d \n", z, centroid_x, centroid_y, temp, src_img[f00], src_img[f01], src_img[f10], src_img[f11]);
-    // printf("%f",temp);
-
-
-    int rs = lroundf(lerp2d(src_img[f00], src_img[f01], src_img[f10], src_img[f11], 
-                            centroid_h, centroid_w));
-    // printf("rs: %d | centroid: h:%f, w:%f | h: %d, w: %d | %d, %d, %d , %d | %d, %d | %d, %d, %d, %d \n", rs, centroid_h, centroid_w, src_h_idx, src_w_idx, f00,f01,f10,f11, C, c, src_img[f00], src_img[f01], src_img[f10], src_img[f11]);
-    // printf("rs: %d | stride h: %f , w: %f  | centroid: h:%f, w:%f| h: %d, w: %d | %d, %d, %d , %d | %d, %d | %d, %d, %d, %d \n", rs, stride_h, stride_w, centroid_h, centroid_w, src_h_idx, src_w_idx, f00,f01,f10,f11, C, c, src_img[f00], src_img[f01], src_img[f10], src_img[f11]);
-    // printf("z: %d | %f, %f | %d | %d, %d, %d, %d \n", z, centroid_x, centroid_y, rs, src_img[f00], src_img[f01], src_img[f10], src_img[f11]);
-
-    dst_img[idx] = (unsigned char)rs;
+    dst_img[dst_idx] = (unsigned char)rs;
 }
 
 int main(){
@@ -240,12 +135,14 @@ int main(){
 
     int batch = 1;
     
-    dim3 dimBlock(1024,1,1); // maximum threads: 1024
-    dim3 dimGrid(int(DST_SIZE/3/1024)+1,batch,3);
 
-    // dim3 dimBlock(32,32,1);  << Max total is 1024 , so , x=32 ,y=32 ,  some one use 1024 to handle flatten tensor is fine.
-    // dim3 dimGrid(19,19,3); << x = 608 / 32 = 19  , same on y , z = channel * batch_size, assume channel = 3. 
-        
+    // cudaStream_t stream1, stream2, stream3, stream4 ;
+    cudaStream_t stream1;
+    cudaStreamCreate ( &stream1) ;
+    
+    dim3 dimBlock(1024, 1,1); // maximum threads: 1024
+    dim3 dimGrid(int(DST_SIZE/3/1024)+1,batch,3);
+    
     unsigned char host_src[SRC_SIZE];
     // unsigned char host_dst[1108992];
     unsigned char host_dst[DST_SIZE];
@@ -268,12 +165,11 @@ int main(){
     GPU_validation<<<1,1>>>();
     cudaDeviceSynchronize();
 
-    dim3 dimBlock2(1024, 1,1); // maximum threads: 1024
-    dim3 dimGrid2(int(DST_SIZE/3/1024)+1,batch,3);
-    cuRESIZE<<<dimGrid2,dimBlock2>>>(device_src, device_dst, 
-        SRC_HEIGHT, SRC_WIDTH,
-        DST_HEIGHT, DST_WIDTH,
-        stride_h, stride_w);
+
+    cuRESIZE<<<dimGrid, dimBlock, 0, stream1>>>(device_src, device_dst, 
+                                                SRC_HEIGHT, SRC_WIDTH,
+                                                DST_HEIGHT, DST_WIDTH,
+                                                stride_h, stride_w);
 
     cudaDeviceSynchronize();
 

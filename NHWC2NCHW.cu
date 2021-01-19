@@ -75,3 +75,4 @@ int main(){
 
     return 0;
 }
+// clear && clear && nvcc NHWC2NCHW.cu -o trans.o && ./trans.o
