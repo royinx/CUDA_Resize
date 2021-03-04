@@ -35,13 +35,13 @@ docker build -t lerp_cuda .
 docker run -it --runtime=nvidia -v ${PWD}:/py -w /py lerp_cuda bash 
 
 # For PyCUDA implementation
-python3 resize.py
+python3 resize_free.py
 
 # For concept
 python3 lerp.py
 
 # For CUDA kernel testing
-nvcc resize_ker.cu -o resize.o && ./resize.o
+nvcc resize_free.cu -o resize_free.o && ./resize_free.o
 
 ```
 Remark: Development platform is in dockerfile.opencv with OpenCV in C for debugging
