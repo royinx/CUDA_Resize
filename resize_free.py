@@ -186,7 +186,7 @@ TransposeKer = module.get_function("Transpose")
 TransNorKer = module.get_function("Transpose_and_normalise")
 
 @profile
-def gpu_resize(input_img: np.ndarray):
+def gpu_resize(input_img: np.ndarray, shape=(608,608)):
     """
     Resize the batch image to (608,608) 
     and Convert NHWC to NCHW
@@ -203,7 +203,7 @@ def gpu_resize(input_img: np.ndarray):
 
     # convert to array
     batch, src_h, src_w, channel = input_img.shape
-    dst_h, dst_w = 608, 608
+    dst_h, dst_w = shape[0], shape[1]
     DST_SIZE = dst_h* dst_w* 3
     # Mem Allocation
     # input memory
