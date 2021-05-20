@@ -207,6 +207,7 @@ def gpu_resize(input_img: np.ndarray, stream):
 
 if __name__ == "__main__":
     import cv2
+    stream = cuda.Stream()
 
     batch = 32
     img_batch = np.tile(cv2.resize(cv2.imread("debug_image/helmet.jpg"),(1920,1080)),[batch,1,1,1])
