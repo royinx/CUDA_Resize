@@ -1,27 +1,33 @@
 #include <stdio.h>
 
-__device__ float lerp1d(int a, int b, float w)
+// __device__ float lerp1d(int a, int b, float w)
+// {
+//     if(b>a){
+//         return a + w*(b-a);
+//     }
+//     else{
+//         return b + w*(a-b);
+//     }
+// }
+
+__device__ double lerp1d(int a, int b, float w)
 {
-    if(b>a){
-        return a + w*(b-a);
-    }
-    else{
-        return b + w*(a-b);
-    }
+    return fma(w, (float)b, fma(-w,(float)a,(float)a));
 }
 
-__device__ float lerp2d(int f00, int f01, int f10, int f11,
+
+__device__ double lerp2d(int f00, int f01, int f10, int f11,
                         float centroid_h, float centroid_w )
 {
     centroid_w = (1 + lroundf(centroid_w) - centroid_w)/2;
     centroid_h = (1 + lroundf(centroid_h) - centroid_h)/2;
     
-    float r0, r1, r;
+    double r0, r1, r;
     r0 = lerp1d(f00,f01,centroid_w);
     r1 = lerp1d(f10,f11,centroid_w);
 
     r = lerp1d(r0, r1, centroid_h); //+ 0.00001
-    // printf("re: %f, %f | %f, %f | %f, %f | %f | %d, %d, %d, %d \n", centroid_x , centroid_y, centroid_x_re, centroid_y_re, r0, r1, r, f00, f01, f10, f11);
+    // printf("%f, %f | %f, %f | %f | %d, %d, %d, %d \n", centroid_h , centroid_w, r0, r1, r, f00, f01, f10, f11);
     return r;
 }
 
@@ -34,7 +40,7 @@ __global__ void GPU_validation(void)
 __global__ void cuRESIZE(unsigned char* src_img, unsigned char* dst_img, 
     const int src_h, const int src_w, 
     const int dst_h, const int dst_w,
-    const float stride_h, const float stride_w)
+    const float scale_h, const float scale_w)
 {
     /* 
     Input: 
@@ -51,9 +57,9 @@ __global__ void cuRESIZE(unsigned char* src_img, unsigned char* dst_img,
     int const C = gridDim.z; // channel 
     int const c = blockIdx.z; // channel number
     long idx = n * blockDim.x * gridDim.x * C + 
-              threadIdx.x * gridDim.x * C +
-              blockIdx.x * C+
-              c;
+               threadIdx.x * gridDim.x * C +
+               blockIdx.x * C +
+               c;
     
     // some overhead threads in each image process
     // when thread idx in one image exceed one image size return;
@@ -77,8 +83,8 @@ __global__ void cuRESIZE(unsigned char* src_img, unsigned char* dst_img,
     int w = img_coor % (W*C)/C; // dst idx
 
     float centroid_h, centroid_w;  
-    centroid_h = stride_h * (h + 0.5); // h w c -> x, y, z : 1080 , 1920 , 3
-    centroid_w = stride_w * (w + 0.5); // 
+    centroid_h = scale_h * (h + 0.5); // h w c -> x, y, z : 1080 , 1920 , 3
+    centroid_w = scale_w * (w + 0.5); // 
 
     // unsigned long = 4,294,967,295 , up to (1080p,RGB)*600 imgs
     long f00,f01,f10,f11;
@@ -153,8 +159,8 @@ int main(){
         // host_src[i] = (i%3);
     }
 
-    float stride_h = (float)SRC_HEIGHT / DST_HEIGHT;
-    float stride_w = (float)SRC_WIDTH / DST_WIDTH;
+    float scale_h = (float)SRC_HEIGHT / DST_HEIGHT;
+    float scale_w = (float)SRC_WIDTH / DST_WIDTH;
 
     unsigned char *device_src, *device_dst;
 	cudaMalloc((unsigned char **)&device_src, SRC_SIZE* sizeof(unsigned char));
@@ -169,7 +175,7 @@ int main(){
     cuRESIZE<<<dimGrid, dimBlock, 0, stream1>>>(device_src, device_dst, 
                                                 SRC_HEIGHT, SRC_WIDTH,
                                                 DST_HEIGHT, DST_WIDTH,
-                                                stride_h, stride_w);
+                                                scale_h, scale_w);
 
     cudaDeviceSynchronize();
 
@@ -177,7 +183,7 @@ int main(){
     // for(int i = 0; i<10; i++){
     // tester<<<dimGrid, dimBlock>>>(device_src, device_dst, 
     //                               SRC_HEIGHT, SRC_WIDTH,
-    //                               stride_h, stride_w);
+    //                               scale_h, scale_w);
     // cudaDeviceSynchronize();
     // }
     
@@ -190,12 +196,12 @@ int main(){
     // }
     printf("============================\n");
  
-    // for(int c = 0; c<3*DST_HEIGHT*DST_WIDTH ; c+=DST_HEIGHT*DST_WIDTH){ // if NCHW
-    //     for(int i = 0 ; i < 30; i++){
-    //         printf("%d %d %d\n", c+i, i, host_dst[c+i]);
-    //     }
-    //     printf("------------------------------\n");
-    // }
+    for(int c = 0; c<3*DST_HEIGHT*DST_WIDTH ; c+=DST_HEIGHT*DST_WIDTH){ // if NCHW
+        for(int i = 0 ; i < 30; i++){
+            printf("%d %d %d\n", c+i, i, host_dst[c+i]);
+        }
+        printf("------------------------------\n");
+    }
 
     // print first 30 elements from each chanel
     // for(int c = 0; c<3; c++){ // NHWC
