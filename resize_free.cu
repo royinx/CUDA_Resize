@@ -15,7 +15,6 @@ __device__ double lerp1d(int a, int b, float w)
     return fma(w, (float)b, fma(-w,(float)a,(float)a));
 }
 
-
 __device__ double lerp2d(int f00, int f01, int f10, int f11,
                         float centroid_h, float centroid_w )
 {
@@ -30,7 +29,6 @@ __device__ double lerp2d(int f00, int f01, int f10, int f11,
     // printf("%f, %f | %f, %f | %f | %d, %d, %d, %d \n", centroid_h , centroid_w, r0, r1, r, f00, f01, f10, f11);
     return r;
 }
-
 
 __global__ void GPU_validation(void)
 {

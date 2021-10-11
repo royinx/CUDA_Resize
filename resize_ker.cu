@@ -1,13 +1,8 @@
 #include <stdio.h>
 
-__device__ float lerp1d(int a, int b, float w)
+__device__ double lerp1d(int a, int b, float w)
 {
-    if(b>a){
-        return a + w*(b-a);
-    }
-    else{
-        return b + w*(a-b);
-    }
+    return fma(w, (float)b, fma(-w,(float)a,(float)a));
 }
 
 __device__ float lerp2d(int f00, int f01, int f10, int f11,
