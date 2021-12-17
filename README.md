@@ -4,9 +4,9 @@
 Ultra fast Bilinear interpolation in image resize with CUDA.
 
 
-Concept and base are in `lerp.py` (single thread, may take a while to run). <br/>
-Boosting with C CUDA in `resize_ker.cu.cu`. <br/>
-PyCUDA example in `resize.py`<br/>
+Concept and base are in [`lerp.py`](lerp.py) (single thread, may take a while to run). <br/>
+Boosting with C CUDA in [`resize_ker.cu`](resize_ker.cu). <br/>
+PyCUDA example in [`resize.py`](resize.py)<br/>
 
 
 Requirements:
