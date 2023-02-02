@@ -4,9 +4,9 @@
 Ultra fast Bilinear interpolation in image resize with CUDA.
 
 
-Concept and base are in [`lerp.py`](lerp.py) (single thread, may take a while to run). <br/>
-Boosting with C CUDA in [`resize_ker.cu`](resize_ker.cu). <br/>
-PyCUDA example in [`resize.py`](resize.py)<br/>
+Concept and base are in `lerp.py` (single thread, may take a while to run). <br/>
+Boosting with C CUDA in `resize_ker.cu.cu`. <br/>
+PyCUDA example in `resize.py`<br/>
 
 
 Requirements:
@@ -47,3 +47,15 @@ nvcc resize_free.cu -o resize_free.o && ./resize_free.o
 Remark: Development platform is in dockerfile.opencv with OpenCV in C for debugging
 
 Function Working well in pycuda container, you dont need to build OpenCV.
+
+
+<details><summary> Advance </summary>
+```bash
+docker run -it --privileged --runtime=nvidia -p 20072:22 -v ${PWD}:/py -w /py lerp_cuda bash 
+sh -c 'echo 1 >/proc/sys/kernel/perf_event_paranoid'
+nvcc resize_free.cu -o resize_free.o
+nsys profile ./resize_free.o
+
+ncu -o metrics /bin/python3 resize_free.py  > profile_log
+ncu -o metrics /bin/python3 resize_free.py
+```
