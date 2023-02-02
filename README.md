@@ -50,6 +50,7 @@ Function Working well in pycuda container, you dont need to build OpenCV.
 
 
 <details><summary> Advance </summary>
+
 ```bash
 docker run -it --privileged --runtime=nvidia -p 20072:22 -v ${PWD}:/py -w /py lerp_cuda bash 
 sh -c 'echo 1 >/proc/sys/kernel/perf_event_paranoid'
