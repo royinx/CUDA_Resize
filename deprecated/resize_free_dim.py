@@ -148,16 +148,9 @@ __global__ void cuResize(unsigned char* src_img, unsigned char* dst_img,
           (src_w_idx+1) * C +
           c;
 
-          
-    // int rs;   
-    // if (int(f10/ (src_h * src_w * C)) > n ){
-    //     centroid_w = (1 + lroundf(centroid_w) - centroid_w)/2;
-    //     rs = lroundf(lerp1d(f00,f01,centroid_w));
-    // }else{
-    //     rs = lroundf(lerp2d(src_img[f00], src_img[f01], src_img[f10], src_img[f11], 
-    //         centroid_h, centroid_w));
-    // }
-    
+    if (src_w_idx+1>=src_w){f01 = f00; f11 = f10;}
+    if (src_h_idx+1>=src_h){f10 = f00; f11 = f01;}
+
     int rs = lroundf(lerp2d(src_img[f00], src_img[f01], src_img[f10], src_img[f11], 
         centroid_h, centroid_w));
 

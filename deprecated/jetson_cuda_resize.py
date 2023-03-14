@@ -132,6 +132,10 @@ __global__ void cuResize(unsigned char* dst_img, unsigned char* src_img,
     //         centroid_h, centroid_w));
     // }
     
+
+    if (src_h_idx<0){src_h_idx=0;} // handle boundary pixle
+    if (src_w_idx<0){src_w_idx=0;} // handle boundary pixle
+    
     int rs = lroundf(lerp2d(src_img[f00], src_img[f01], src_img[f10], src_img[f11], 
         centroid_h, centroid_w));
 

@@ -36,7 +36,7 @@ __device__ float lerp2d(int f00, int f01, int f10, int f11,
 __global__ void Transpose(unsigned char *odata, const unsigned char *idata,
                             int H, int W)
 {
-    int N = gridDim.y; // batch size
+    // int N = gridDim.y; // batch size
     int n = blockIdx.y; // batch number
     int C = gridDim.z; // channel 
     int c = blockIdx.z; // channel number
@@ -64,7 +64,7 @@ __global__ void Transpose(unsigned char *odata, const unsigned char *idata,
 __global__ void Transpose_and_normalise(float *odata, const unsigned char *idata,
                             int H, int W)
 {
-    int N = gridDim.y; // batch size
+    // int N = gridDim.y; // batch size
     int n = blockIdx.y; // batch number
     int C = gridDim.z; // channel 
     int c = blockIdx.z; // channel number
@@ -103,7 +103,7 @@ __global__ void cuResize(unsigned char* src_img, unsigned char* dst_img,
         dst_img - NHWC
     */
 
-    int N = gridDim.y; // batch size
+    // int N = gridDim.y; // batch size
     int n = blockIdx.y; // batch number
     int C = gridDim.z; // channel 
     int c = blockIdx.z; // channel number
@@ -151,16 +151,9 @@ __global__ void cuResize(unsigned char* src_img, unsigned char* dst_img,
           (src_w_idx+1) * C +
           c;
 
-          
-    // int rs;   
-    // if (int(f10/ (src_h * src_w * C)) > n ){
-    //     centroid_w = (1 + lroundf(centroid_w) - centroid_w)/2;
-    //     rs = lroundf(lerp1d(f00,f01,centroid_w));
-    // }else{
-    //     rs = lroundf(lerp2d(src_img[f00], src_img[f01], src_img[f10], src_img[f11], 
-    //         centroid_h, centroid_w));
-    // }
-    
+    if (src_w_idx+1>=src_w){f01 = f00; f11 = f10;}
+    if (src_h_idx+1>=src_h){f10 = f00; f11 = f01;}
+
     int rs = lroundf(lerp2d(src_img[f00], src_img[f01], src_img[f10], src_img[f11], 
         centroid_h, centroid_w));
 
@@ -269,6 +262,7 @@ class cuResize():
 
 
 if __name__ == "__main__":
+    print("[ WARNING ] - pycuda is deprecated , recommend cupy instead")
     from time import perf_counter
     batch = 200
     img_batch = np.tile(cv2.resize(cv2.imread("trump.jpg"),(1920,1080)),[batch,1,1,1])

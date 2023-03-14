@@ -89,8 +89,8 @@ __global__ void cuRESIZE(unsigned char* src_img, unsigned char* dst_img,
 
     int src_h_idx = lroundf(centroid_h)-1;
     int src_w_idx = lroundf(centroid_w)-1;
-    if (src_h_idx<0){src_h_idx=0;}
-    if (src_w_idx<0){src_w_idx=0;}
+    if (src_h_idx<0){src_h_idx=0;} // handle boundary pixle
+    if (src_w_idx<0){src_w_idx=0;} // handle boundary pixle
     // printf("h:%d w:%d\n",src_h_idx,src_w_idx);
     // printf("src_h_idx:%d , h: %d | src_w_idx:%d , w: %d\n",src_h_idx,h,src_w_idx,w);
 
@@ -112,6 +112,9 @@ __global__ void cuRESIZE(unsigned char* src_img, unsigned char* dst_img,
           (src_w_idx+1) * C +
           c;
     int rs;   
+    if (src_w_idx+1>=src_w){f01 = f00; f11 = f10;} // handle boundary pixle
+    if (src_h_idx+1>=src_h){f10 = f00; f11 = f01;} // handle boundary pixle
+
     if (int(f10/ (src_h * src_w * C)) > n ){
         centroid_w = (1 + lroundf(centroid_w) - centroid_w)/2;
         rs = lroundf(lerp1d(f00,f01,centroid_w));
