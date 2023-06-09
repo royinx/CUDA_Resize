@@ -44,6 +44,9 @@ python3 lerp.py
 # For CUDA kernel testing
 nvcc resize_free.cu -o resize_free.o && ./resize_free.o
 
+# For benmarking
+wget http://images.cocodataset.org/zips/val2017.zip
+python3 benchmark.py
 ```
 <details><summary> Advance </summary>
 
