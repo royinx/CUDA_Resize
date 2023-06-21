@@ -66,10 +66,10 @@ Function Working well in pycuda container, you dont need to build OpenCV.
 
 ### Benchmark
 #### AWS g4dn.xlarge (Tesla T4)
-> ratio = T4 (ms) / Xeon Platinum 8259CL (ms)
+> ratio = T4 (ms) per img / Xeon Platinum 8259CL (ms) per img
 ![](benchmark/g4dn.png)
 
-> ms/img on T4 
+> (ms) per img on T4 
 ![](benchmark/t4.png)
 
 
