@@ -1,4 +1,32 @@
-#include <stdio.h>
+#include <cuda_runtime.h>
+#include <iostream>
+#define CHECK_CUDA_ERROR(val) check((val), #val, __FILE__, __LINE__)
+template <typename T>
+void check(T err, const char* const func, const char* const file,
+    const int line)
+{
+    if (err != cudaSuccess)
+    {
+        std::cerr << "CUDA Runtime Error at: " << file << ":" << line << std::endl;
+        std::cerr << cudaGetErrorString(err) << " " << func << std::endl;
+        // We don't exit when we encounter CUDA errors in this example.
+        // std::exit(EXIT_FAILURE);
+    }
+}
+
+#define CHECK_LAST_CUDA_ERROR() checkLast(__FILE__, __LINE__)
+void checkLast(const char* const file, const int line)
+{
+    cudaError_t err{cudaGetLastError()};
+    if (err != cudaSuccess)
+    {
+        std::cerr << "CUDA Runtime Error at: " << file << ":" << line
+                  << std::endl;
+        std::cerr << cudaGetErrorString(err) << std::endl;
+        // We don't exit when we encounter CUDA errors.
+        // std::exit(EXIT_FAILURE); 
+    }
+}
 
 // __device__ float lerp1d(int a, int b, float w)
 // {
@@ -10,18 +38,18 @@
 //     }
 // }
 
-__device__ double lerp1d(int a, int b, float w)
+__device__ float lerp1d(int a, int b, float w)
 {
     return fma(w, (float)b, fma(-w,(float)a,(float)a));
 }
 
-__device__ double lerp2d(int f00, int f01, int f10, int f11,
+__device__ float lerp2d(int f00, int f01, int f10, int f11,
                         float centroid_h, float centroid_w )
 {
     centroid_w = (1 + lroundf(centroid_w) - centroid_w)/2;
     centroid_h = (1 + lroundf(centroid_h) - centroid_h)/2;
     
-    double r0, r1, r;
+    float r0, r1, r;
     r0 = lerp1d(f00,f01,centroid_w);
     r1 = lerp1d(f10,f11,centroid_w);
 
@@ -164,13 +192,13 @@ int main(){
     float scale_w = (float)SRC_WIDTH / DST_WIDTH;
 
     unsigned char *device_src, *device_dst;
-	cudaMalloc((unsigned char **)&device_src, SRC_SIZE* sizeof(unsigned char));
-    cudaMalloc((unsigned char **)&device_dst, DST_SIZE* sizeof(unsigned char));
+	CHECK_CUDA_ERROR(cudaMalloc((unsigned char **)&device_src, SRC_SIZE* sizeof(unsigned char)));
+    CHECK_CUDA_ERROR(cudaMalloc((unsigned char **)&device_dst, DST_SIZE* sizeof(unsigned char)));
     
-	cudaMemcpy(device_src , host_src , SRC_SIZE * sizeof(unsigned char), cudaMemcpyHostToDevice);
+	CHECK_CUDA_ERROR(cudaMemcpy(device_src , host_src , SRC_SIZE * sizeof(unsigned char), cudaMemcpyHostToDevice));
 
     GPU_validation<<<1,1>>>();
-    cudaDeviceSynchronize();
+    CHECK_CUDA_ERROR(cudaDeviceSynchronize());
 
 
     cuRESIZE<<<dimGrid, dimBlock, 0, stream1>>>(device_src, device_dst, 
@@ -178,8 +206,7 @@ int main(){
                                                 DST_HEIGHT, DST_WIDTH,
                                                 scale_h, scale_w);
 
-    cudaDeviceSynchronize();
-
+    CHECK_CUDA_ERROR(cudaDeviceSynchronize());
 
     // for(int i = 0; i<10; i++){
     // tester<<<dimGrid, dimBlock>>>(device_src, device_dst, 
@@ -225,9 +252,9 @@ int main(){
     // printf("%d, %d, %d\n",count_0,count_1,count_2);
     // printf("%ld \n",sizeof(host_dst)/sizeof(unsigned char));
 
-	cudaFree(device_src);
-	cudaFree(device_dst);
-
+	CHECK_CUDA_ERROR(cudaFree(device_src));
+	CHECK_CUDA_ERROR(cudaFree(device_dst));
+    CHECK_LAST_CUDA_ERROR();
     return 0;
 }
 // clear && nvcc resize_free.cu -o resize_free.o && ./resize_free.o
