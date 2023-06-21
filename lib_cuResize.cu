@@ -2,7 +2,7 @@ extern "C"{
 #define TILE_DIM 32
 #define BLOCK_ROWS 8
 
-__device__ double lerp1d(int a, int b, float w)
+__device__ float lerp1d(int a, int b, float w)
 {
     return fma(w, (float)b, fma(-w,(float)a,(float)a));
 }
@@ -13,7 +13,7 @@ __device__ float lerp2d(int f00, int f01, int f10, int f11,
     centroid_w = (1 + lroundf(centroid_w) - centroid_w)/2;
     centroid_h = (1 + lroundf(centroid_h) - centroid_h)/2;
     
-    double r0, r1, r;
+    float r0, r1, r;
     r0 = lerp1d(f00,f01,centroid_w);
     r1 = lerp1d(f10,f11,centroid_w);
 
