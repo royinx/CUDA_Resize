@@ -57,7 +57,7 @@ docker run -it --runtime=nvidia -v ${PWD}:/py -w /py lerp_cuda bash
 ```
 </details>
 
-<details><summary> Advance </summary>
+<details><summary> Advance Metrics </summary>
 
 ```bash
 docker run -it --privileged --runtime=nvidia -p 20072:22 -v ${PWD}:/py -w /py lerp_cuda bash
@@ -72,6 +72,8 @@ Remark: Development platform is in dockerfile.opencv with OpenCV in C for debugg
 
 Function Working well in pycuda container, you dont need to build OpenCV.
 </details>
+
+---
 
 ### Benchmark
 #### AWS g4dn.xlarge (Tesla T4)

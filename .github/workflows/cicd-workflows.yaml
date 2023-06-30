@@ -34,8 +34,8 @@ jobs:
         id: build_image
         run: |
           # Build, test a docker container
-          docker buildx build --load --tag simple_api_engine .
-          docker run -t --rm --entrypoint bash simple_api_engine -c "pip install pylint==2.13.0 && pylint --rcfile=lintrc/pylintrc **/*.py"
+          docker buildx build --load --tag linting_machine .
+          docker run -t --rm --entrypoint bash linting_machine -c "pip install pylint==2.13.0 && pylint --rcfile=lintrc/pylintrc *.py"
   build_image:
     name: Build & Push Container - Docker Hub
     needs: [commit_filter]
