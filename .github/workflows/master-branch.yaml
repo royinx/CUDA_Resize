@@ -41,4 +41,4 @@ jobs:
           PULL_REQUEST_BRANCH: "development"
           PULL_REQUEST_FROM_BRANCH: "master-to-development"
           PULL_REQUEST_TITLE: "chore: auto sync master with development"
-          GITHUB_TOKEN: ${{ secrets.MACHINE_USER_CREDENTIALS }}
+          GITHUB_TOKEN: ${{ secrets.CICD_CREDENTIALS }}
