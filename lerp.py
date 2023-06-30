@@ -1,33 +1,35 @@
-import numpy as np 
-import cv2
+# pylint: disable=line-too-long, invalid-name, multiple-statements, too-many-locals, too-many-arguments
+
+import numpy as np
+# import cv2
 from line_profiler import LineProfiler
 
 profile = LineProfiler()
 
 
 def lerp1d( a,  b,  w):
-    if b>a:
-        return a + w*(b-a)
-    else:
-        return b + w*(a-b)
     """
     a + w*(b-a)
 
     Returns the linear interpolation of a and b based on weight w.
 
-    a and b are either both scalars or both vectors of the same length. 
-    The weight w may be a scalar or a vector of the same length as a and b. 
-    w can be any value (so is not restricted to be between zero and one); 
+    a and b are either both scalars or both vectors of the same length.
+    The weight w may be a scalar or a vector of the same length as a and b.
+    w can be any value (so is not restricted to be between zero and one);
     if w has values outside the [0,1] range, it actually extrapolates.
 
     lerp returns a when w is zero and returns b when w is one.
     """
+    if b>a:
+        return a + w*(b-a)
+    return b + w*(a-b)
+
 
 
 @profile
 # def lerp2d(grid, centroid:np.ndarray):
 #     """ Linear Interpolation
-#     grid is a 2by2 matrix 
+#     grid is a 2by2 matrix
 #     centroid is the centroid of the 2x2 matrix, (row-y,col-x), range:[0,1]
 #      -----r0-- ---------
 #     |0,0   |  |0,1      |
@@ -52,7 +54,7 @@ def lerp1d( a,  b,  w):
 
 def lerp2d(f00,f01,f10,f11, centroid_h, centroid_w):
     """ Linear Interpolation
-    grid is a 2by2 matrix 
+    grid is a 2by2 matrix
     centroid is the centroid of the 2x2 matrix, (row-y,col-x), range:[0,1]
      -----r0-- ---------
     |0,0   |  |0,1      |
@@ -68,13 +70,13 @@ def lerp2d(f00,f01,f10,f11, centroid_h, centroid_w):
     diff + 1block / 2blocks
 
     diff = round(x) - x [-0.4999, 0.4999]
-    p = [1 block + (round(x)- x)] 
+    p = [1 block + (round(x)- x)]
         -------------------------
                 2 blocks
 
     """
 
-    weight_h = (1 + np.round(centroid_h)-centroid_h)/2  
+    weight_h = (1 + np.round(centroid_h)-centroid_h)/2
     weight_w = (1 + np.round(centroid_w)-centroid_w)/2
 
     r0 = lerp1d(f00,f01,weight_w)
@@ -91,14 +93,14 @@ def downsample(inp, out):
     """"
     centroid is the centroid of the 2x2 matrix, (row-y,col-x), range:[0,1]
 
-    ** only consider downsample resize, 
+    ** only consider downsample resize,
 
     When s < 0.5 grid only have 1 block, this would cause numpy error. (dimension)
 
-    2 solutions can solve, 
-    1) padding + conv mean and 
+    2 solutions can solve,
+    1) padding + conv mean and
     2) condition catch if s < 0.5 , dst[i,j]= src[0,0]
-    
+
     """
     src_h, src_w = inp.shape
     dst_h, dst_w = out.shape
@@ -106,10 +108,10 @@ def downsample(inp, out):
     stride_h = src_h / dst_h
     stride_w = src_w / dst_w
     # centroid = np.zeros((2,), dtype=np.float32)
-    for h in range(out.shape[0]): # i, h 
+    for h in range(out.shape[0]): # i, h
         for w in range(out.shape[1]): # j, w
-            centroid_h = stride_h * (h + 0.5) # row / y 
-            centroid_w = stride_w * (w + 0.5) # col / x 
+            centroid_h = stride_h * (h + 0.5) # row / y
+            centroid_w = stride_w * (w + 0.5) # col / x
             if centroid_h % 2 == 0.5: centroid_h+=0.00001 # python even rounding
             if centroid_w % 2 == 0.5: centroid_w+=0.00001 # python even rounding
 
@@ -123,7 +125,7 @@ def downsample(inp, out):
 
             # print(int(round(centroid[0] - 1 )) , int(round(centroid[0] + 1)), int(round(centroid[1] - 1 )), int(round(centroid[1] + 1)))
             # print(grid, np.round(centroid,2))
-            assert grid.size == 4 
+            assert grid.size == 4
             out[h,w] = lerp2d(f00,f01,f10,f11, centroid_h, centroid_w)
 def main():
     """
@@ -157,7 +159,7 @@ def main():
         print(out_image[0:10,0:10,i])
         print("=======================================")
 
-    
+
     # out_image2 = cv2.resize(inp_image,(3,3))
     # print(out_image2)
 
