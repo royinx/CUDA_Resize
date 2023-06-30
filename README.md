@@ -20,20 +20,18 @@ Pros:
 - no shared object .so and .dll binary file
 - Install cupy and use
 - Compatible to `Numpy` library
-- pass the GPU array to TensorRT directly. 
+- pass the GPU array to TensorRT directly.
 
 Cons:
 - still need the concept of CUDA programming
 - SourceModule have to write in C CUDA, including all CUDA kernel and device code
 
 ---
-### Build 
+### Quick Start
 
 ```bash
-git clone https://github.com/royinx/CUDA_Resize.git 
-cd CUDA_Resize
-docker build -t lerp_cuda .
-docker run -it --runtime=nvidia -v ${PWD}:/py -w /py lerp_cuda bash 
+# Pull docker image
+docker run -it --runtime=nvidia royinx/cuda_resize bash
 
 # For Cupy implementation
 python3 resize.py
@@ -48,10 +46,21 @@ nvcc resize_free.cu -o resize_free.o && ./resize_free.o
 wget http://images.cocodataset.org/zips/val2017.zip
 python3 benchmark.py
 ```
+
+<details><summary> Build </summary>
+
+```bash
+git clone https://github.com/royinx/CUDA_Resize.git
+cd CUDA_Resize
+docker build -t lerp_cuda .
+docker run -it --runtime=nvidia -v ${PWD}:/py -w /py lerp_cuda bash
+```
+</details>
+
 <details><summary> Advance </summary>
 
 ```bash
-docker run -it --privileged --runtime=nvidia -p 20072:22 -v ${PWD}:/py -w /py lerp_cuda bash 
+docker run -it --privileged --runtime=nvidia -p 20072:22 -v ${PWD}:/py -w /py lerp_cuda bash
 sh -c 'echo 1 >/proc/sys/kernel/perf_event_paranoid'
 nvcc resize_free.cu -o resize_free.o
 nsys profile ./resize_free.o
@@ -69,7 +78,7 @@ Function Working well in pycuda container, you dont need to build OpenCV.
 > ratio = T4 (ms) per img / Xeon Platinum 8259CL (ms) per img
 ![](benchmark/g4dn.png)
 
-> (ms) per img on T4 
+> (ms) per img on T4
 ![](benchmark/t4.png)
 
 

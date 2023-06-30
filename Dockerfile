@@ -9,5 +9,8 @@ RUN apt update && apt install -y libgl1-mesa-glx
 
 # Python:
 RUN python3 -m pip install opencv-python \
-                            line_profiler \ 
+                            line_profiler \
                             cupy-cuda11x
+
+WORKDIR /workspace
+COPY . .
