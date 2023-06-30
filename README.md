@@ -31,7 +31,7 @@ Cons:
 
 ```bash
 # Pull docker image
-docker run -it --runtime=nvidia royinx/cuda_resize bash
+docker run -it --runtime=nvidia royinx/cuda_resize:master bash
 
 # For Cupy implementation
 python3 resize.py
