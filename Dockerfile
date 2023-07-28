@@ -1,4 +1,4 @@
-FROM nvcr.io/nvidia/tensorrt:22.07-py3
+FROM nvcr.io/nvidia/tensorrt:23.06-py3
 ENV DEBIAN_FRONTEND noninteractive
 
 # Build tools
