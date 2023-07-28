@@ -47,31 +47,22 @@ jobs:
           submodules: true
           token: ${{ secrets.CICD_CREDENTIALS }}
 
-      - name: Setup Docker build kit
-        uses: crazy-max/ghaction-docker-buildx@v1
-        with:
-          version: latest
 
-      - name: Log in to Docker Hub
-        uses: docker/login-action@f4ef78c080cd8ba55a85445d5b36e214a81df20a
+      - name: Build the image (AMD64, ARM64)
+        run: |
+          docker buildx create --use --name multi-arch-builder && \
+          docker login -u ${{ secrets.DOCKER_USERNAME }} -p ${{ secrets.DOCKER_PASSWORD }} && \
+          docker buildx build --push \
+            --tag ${{ secrets.DOCKER_USERNAME }}/${{ env.repo_name }} \
+            --platform linux/amd64,linux/arm64 .
+
+      - name: Docker Hub Description
+        uses: peter-evans/dockerhub-description@v3
         with:
           username: ${{ secrets.DOCKER_USERNAME }}
           password: ${{ secrets.DOCKER_PASSWORD }}
-
-      - name: Extract metadata (tags, labels) for Docker
-        id: meta
-        uses: docker/metadata-action@9ec57ed1fcdbf14dcef7dfbe97b2010124a938b7
-        with:
-          images: ${{ secrets.DOCKER_USERNAME }}/cuda_resize
-
-      - name: Build and push Docker image
-        uses: docker/build-push-action@3b5e8027fcad23fda98b2e3ac259d8d67585f671
-        with:
-          context: .
-          file: ./Dockerfile
-          push: true
-          tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
+          repository: ${{ secrets.DOCKER_USERNAME }}/${{ env.repo_name }}
+          readme-filepath: ./README.md
 
       - if: success()
         name: Notify Deployment
