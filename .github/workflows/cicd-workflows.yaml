@@ -51,13 +51,20 @@ jobs:
           token: ${{ secrets.CICD_CREDENTIALS }}
 
 
-      - name: Build the image (AMD64, ARM64)
+      # - name: Build the image (AMD64, ARM64)
+      #   run: |
+      #     docker buildx create --use --name multi-arch-builder && \
+      #     docker login -u ${{ secrets.DOCKER_USERNAME }} -p ${{ secrets.DOCKER_PASSWORD }} && \
+      #     docker buildx build --push \
+      #       --tag ${{ secrets.DOCKER_USERNAME }}/${{ env.repo_name }} \
+      #       --platform linux/amd64,linux/arm64 .
+
+      - name: Build the image (AMD64)
         run: |
-          docker buildx create --use --name multi-arch-builder && \
           docker login -u ${{ secrets.DOCKER_USERNAME }} -p ${{ secrets.DOCKER_PASSWORD }} && \
           docker buildx build --push \
-            --tag ${{ secrets.DOCKER_USERNAME }}/${{ env.repo_name }} \
-            --platform linux/amd64,linux/arm64 .
+            --tag ${{ secrets.DOCKER_USERNAME }}/${{ env.repo_name }} .
+
 
       - name: Docker Hub Description
         uses: peter-evans/dockerhub-description@v3
