@@ -2,4 +2,5 @@
 build
 *.o
 *.so
-val2017/
+val2017*
+*.npy
