@@ -4,7 +4,6 @@
 import sys
 import os
 import time
-from collections import defaultdict
 
 # third party library
 import cv2
@@ -118,7 +117,7 @@ def warm_up():
     _, _, _, output_array = cuda_resize(input_array_gpu,
                                                                     (128,256),
                                                                     pad=False) # N,W,H,C
-    print(output_array.shape)
+    print("Warm up:", output_array.shape)
 
 
 if __name__ == "__main__":
@@ -128,7 +127,7 @@ if __name__ == "__main__":
     size = [(1920,1080), (960,540), (480,270), (240,135), (120,67), (60,33), (30,16)]
     benchmark = pd.DataFrame(columns=[str(size_) for size_ in size],
                              index=[str(size_) for size_ in size])
-    
+
     # benchmark = defaultdict(dict)
     for src_shape in size:
         if os.path.exists(f"{src_shape}.npy"):

@@ -1,4 +1,3 @@
-
 # Cupy, CUDA Bilinear interpolation
 
 Ultra fast Bilinear interpolation in image resize with CUDA.
