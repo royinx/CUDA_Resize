@@ -4,12 +4,14 @@
 import sys
 import os
 import time
+from collections import defaultdict
 
 # third party library
 import cv2
 import cupy as cp
 import numpy as np
 from line_profiler import LineProfiler
+import pandas as pd
 
 # custom CUDA module
 with open('lib_cuResize.cu', 'r', encoding="utf-8") as reader:
@@ -124,6 +126,10 @@ if __name__ == "__main__":
     batch = 100
     warm_up()
     size = [(1920,1080), (960,540), (480,270), (240,135), (120,67), (60,33), (30,16)]
+    benchmark = pd.DataFrame(columns=[str(size_) for size_ in size],
+                             index=[str(size_) for size_ in size])
+    
+    # benchmark = defaultdict(dict)
     for src_shape in size:
         if os.path.exists(f"{src_shape}.npy"):
             imgs = np.load(f"{src_shape}.npy")
@@ -164,5 +170,11 @@ if __name__ == "__main__":
                 # cv2.imwrite(f"{index}_output_cuda.jpg", cp.asnumpy(output_array[0]))
                 del input_array_gpu
                 cp.get_default_memory_pool().free_all_blocks()
-            print(f"{src_shape} -> {dst_shape}: \t CPU: {sum(cpu_metrics)} \t | CUDA: {sum(cuda_metrics)}")
+            cpu_ = sum(cpu_metrics)
+            gpu_ = sum(cuda_metrics)
+            speedup = cpu_/gpu_
+            benchmark[f"{src_shape}"][f"{dst_shape}"] = speedup
+            # print(f"{src_shape} -> {dst_shape}: \t CPU: {cpu_} \t | CUDA: {gpu_} \t | Speedup: {speedup}")
+            # print(benchmark)
         del imgs
+    print(benchmark)
