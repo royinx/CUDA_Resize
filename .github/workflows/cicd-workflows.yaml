@@ -1,4 +1,6 @@
 name: CICD
+env:
+  repo_name: ${{ github.event.repository.name }}
 
 on:
   pull_request:
@@ -50,7 +52,7 @@ jobs:
 
       - name: Build the image (AMD64, ARM64)
         run: |
-          docker buildx create --use --name multi-arch-builder && \
+          # docker buildx create --use --name multi-arch-builder && \
           docker login -u ${{ secrets.DOCKER_USERNAME }} -p ${{ secrets.DOCKER_PASSWORD }} && \
           docker buildx build --push \
             --tag ${{ secrets.DOCKER_USERNAME }}/${{ env.repo_name }} \
