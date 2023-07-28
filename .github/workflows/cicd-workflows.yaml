@@ -1,6 +1,6 @@
 name: CICD
 env:
-  repo_name: ${{ github.event.repository.name }}
+  repo_name: ${{ github.event.repository.name,, }}  # ,, is for lowercase
 
 on:
   pull_request:
