@@ -63,6 +63,8 @@ jobs:
         run: |
           docker login -u ${{ secrets.DOCKER_USERNAME }} -p ${{ secrets.DOCKER_PASSWORD }} && \
           docker buildx build --push \
+            --cache-to ${{ secrets.DOCKER_USERNAME }}/${{ env.repo_name }}:build_cache \
+            --cache-from ${{ secrets.DOCKER_USERNAME }}/${{ env.repo_name }}:build_cache \
             --tag ${{ secrets.DOCKER_USERNAME }}/${{ env.repo_name }} .
 
 
