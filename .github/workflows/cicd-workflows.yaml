@@ -61,6 +61,7 @@ jobs:
 
       - name: Build the image (AMD64)
         run: |
+          docker buildx create --use --name multi-arch-builder && \
           docker login -u ${{ secrets.DOCKER_USERNAME }} -p ${{ secrets.DOCKER_PASSWORD }} && \
           docker buildx build --push \
             --cache-to ${{ secrets.DOCKER_USERNAME }}/${{ env.repo_name }}:build_cache \
