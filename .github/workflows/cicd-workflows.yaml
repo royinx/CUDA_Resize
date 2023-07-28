@@ -73,6 +73,16 @@ jobs:
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
 
+      - if: success()
+        name: Notify Deployment
+        uses: rtCamp/action-slack-notify@master
+        env:
+          SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
+          SLACK_USERNAME: ${{ github.repository	}}
+          SLACK_ICON: https://github.com/royinx.png?size=48
+          SLACK_TITLE: "New Version Deployed :rocket:"
+          SLACK_MESSAGE: "Check out https://hub.docker.com/repository/docker/${{ secrets.DOCKER_USERNAME }}/${{ env.repo_name }}"
+
   auto_merge_pr:
     name: Auto Merge Sync Pull Request
     runs-on: ubuntu-latest
