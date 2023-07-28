@@ -66,7 +66,7 @@ jobs:
           docker buildx build --push \
             --cache-to ${{ secrets.DOCKER_USERNAME }}/${{ env.repo_name }}:build_cache \
             --cache-from ${{ secrets.DOCKER_USERNAME }}/${{ env.repo_name }}:build_cache \
-            --tag ${{ secrets.DOCKER_USERNAME }}/${{ env.repo_name }}:cu12 &&\
+            --tag ${{ secrets.DOCKER_USERNAME }}/${{ env.repo_name }}:cu12 \
             --tag ${{ secrets.DOCKER_USERNAME }}/${{ env.repo_name }}:latest .
 
       # - name: Docker Hub Description
