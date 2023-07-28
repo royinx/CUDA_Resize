@@ -1,6 +1,7 @@
 name: CICD
 env:
-  repo_name: ${{ github.event.repository.name,, }}  # ,, is for lowercase
+  # repo_name: ${{ github.event.repository.name }}
+  repo_name: cuda_resize
 
 on:
   pull_request:
