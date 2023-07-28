@@ -66,10 +66,8 @@ jobs:
           docker buildx build --push \
             --cache-to ${{ secrets.DOCKER_USERNAME }}/${{ env.repo_name }}:build_cache \
             --cache-from ${{ secrets.DOCKER_USERNAME }}/${{ env.repo_name }}:build_cache \
-            --tag ${{ secrets.DOCKER_USERNAME }}/${{ env.repo_name }}:cu12 . && \
-          docker tag ${{ secrets.DOCKER_USERNAME }}/${{ env.repo_name }}:cu12 ${{ secrets.DOCKER_USERNAME }}/${{ env.repo_name }}:latest && \
-          docker push ${{ secrets.DOCKER_USERNAME }}/${{ env.repo_name }}:latest
-
+            --tag ${{ secrets.DOCKER_USERNAME }}/${{ env.repo_name }}:cu12 &&\
+            --tag ${{ secrets.DOCKER_USERNAME }}/${{ env.repo_name }}:latest  .
 
       # - name: Docker Hub Description
       #   uses: peter-evans/dockerhub-description@v3
@@ -89,21 +87,21 @@ jobs:
           SLACK_TITLE: "New Version Deployed :rocket:"
           SLACK_MESSAGE: "Check out https://hub.docker.com/r/${{ secrets.DOCKER_USERNAME }}/${{ env.repo_name }}"
 
-  auto_merge_pr:
-    name: Auto Merge Sync Pull Request
-    runs-on: ubuntu-latest
-    # needs: [check_code]
-    if: "contains(github.event.pull_request.title, 'chore: auto sync master with development')"
-    steps:
-      - name: Auto Review
-        uses: andrewmusgrave/automatic-pull-request-review@0.0.2
-        with:
-          repo-token: "${{ secrets.CICD_CREDENTIALS }}"
-          event: APPROVE
-          body: "Auto Review by Ultron"
-      - name: Auto Merge Sync PR
-        uses: "pascalgn/automerge-action@4536e8847eb62fe2f0ee52c8fa92d17aa97f932f"
-        env:
-          GITHUB_TOKEN: "${{ secrets.CICD_CREDENTIALS }}"
-          MERGE_LABELS: ""
-          MERGE_METHOD: "merge"
+  # auto_merge_pr:
+  #   name: Auto Merge Sync Pull Request
+  #   runs-on: ubuntu-latest
+  #   # needs: [check_code]
+  #   if: "contains(github.event.pull_request.title, 'chore: auto sync master with development')"
+  #   steps:
+  #     - name: Auto Review
+  #       uses: andrewmusgrave/automatic-pull-request-review@0.0.2
+  #       with:
+  #         repo-token: "${{ secrets.CICD_CREDENTIALS }}"
+  #         event: APPROVE
+  #         body: "Auto Review by Ultron"
+  #     - name: Auto Merge Sync PR
+  #       uses: "pascalgn/automerge-action@4536e8847eb62fe2f0ee52c8fa92d17aa97f932f"
+  #       env:
+  #         GITHUB_TOKEN: "${{ secrets.CICD_CREDENTIALS }}"
+  #         MERGE_LABELS: ""
+  #         MERGE_METHOD: "merge"
