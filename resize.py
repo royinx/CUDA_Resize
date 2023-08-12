@@ -15,17 +15,16 @@ def cuda_resize(inputs: cp.ndarray, # src: (N,H,W,C)
                 shape: tuple, # (dst_h, dst_w)
                 out: cp.ndarray=None, # dst: (N,H,W,C)
                 pad: bool=True):
-
+    """
+    to optimise with shared memory
+    block = (1024, )  # 1024 threads per block , to loop a row for dst row, with MAX_WIDTH 7680 (8K)
+    grid = (dst_h,N)  #
+    """
     out_dtype = cp.uint8
 
     N, src_h, src_w, C = inputs.shape
     assert C == 3 # resize kernel only accept 3 channel tensors.
     dst_h, dst_w = shape
-    DST_SIZE = dst_h * dst_w * C
-
-    # define kernel configs
-    block = (1024, )
-    grid = (int(DST_SIZE/3//1024)+1,N,3)
 
     if len(shape)!=2:
         raise "cuda resize target shape must be (h,w)"
@@ -56,8 +55,16 @@ def cuda_resize(inputs: cp.ndarray, # src: (N,H,W,C)
     shape = (N, ker_h, ker_w, C)
     if not out:
         out = cp.empty(tuple(shape),dtype = out_dtype)
-
+    # define kernel configs
+    block = (1024, )
+    grid  = (ker_h, N)
     with cp.cuda.stream.Stream() as stream:
+        print(inputs.dtype, out.dtype ,
+              inputs.shape, out.shape,
+              src_h, src_w,
+              ker_h, ker_w,
+              cp.float32(src_h/ker_h), cp.float32(src_w/ker_w))
+
         cuResizeKer(grid, block,
                 (inputs, out,
                 cp.int32(src_h), cp.int32(src_w),
@@ -65,6 +72,7 @@ def cuda_resize(inputs: cp.ndarray, # src: (N,H,W,C)
                 cp.float32(src_h/ker_h), cp.float32(src_w/ker_w)
                 )
             )
+
         if pad:
             if src_h / src_w > dst_h / dst_w:
                 padded_batch[:, :, left_pad:left_pad + out.shape[2], :] = out
@@ -94,8 +102,8 @@ def main(input_array: cp.ndarray, resize_shape:tuple):
                                 kind=1)
 
     resize_scale, top_pad, left_pad, output_array = cuda_resize(input_array_gpu,
-                                                                    resize_shape,
-                                                                    pad=False) # N,W,H,C
+                                                                resize_shape,
+                                                                pad=True) # N,W,H,C
 
     return output_array, [resize_scale, top_pad, left_pad]
 
@@ -103,9 +111,11 @@ if __name__ == "__main__":
     # prepare data
     batch = 50
     img_batch = np.tile(cv2.resize(cv2.imread("trump.jpg"),
-                                   (128,64)),
+                                   (1920,1080)),
                         [batch,1,1,1])
-    output_array, _ = main(img_batch, (256,128))
+    img_batch[-1] = np.tile(cv2.resize(cv2.imread("rgba.png"),(1920,1080)),[1,1,1])
+    output_array, _ = main(img_batch, (320,640))
+    print(output_array)
 
     for idx, img in enumerate(cp.asnumpy(output_array)):
         cv2.imwrite(f"output_{idx}.jpg", img)
