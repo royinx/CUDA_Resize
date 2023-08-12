@@ -65,8 +65,8 @@ sh -c 'echo 1 >/proc/sys/kernel/perf_event_paranoid'
 nvcc resize_free.cu -o resize_free.o
 nsys profile ./resize_free.o
 
-ncu -o metrics /bin/python3 resize_free.py  > profile_log
-ncu -o metrics /bin/python3 resize_free.py
+ncu -o metrics /bin/python3 resize.py  > profile_log
+ncu -o metrics /bin/python3 resize.py
 ```
 Remark: Development platform is in dockerfile.opencv with OpenCV in C for debugging
 
@@ -76,14 +76,16 @@ Function Working well in pycuda container, you dont need to build OpenCV.
 ---
 
 ### Benchmark
-#### AWS g4dn.xlarge (Tesla T4)
+#### 2080ti
+> ratio = 2080ti (ms) / Ryzen 2700x (ms)
+![](benchmark/2080ti.png)
+> time (us/img)
+![](benchmark/2080ti_ms.png)
+
+
+#### (Deprecated) [w/o smem] AWS g4dn.xlarge (Tesla T4)
 > ratio = T4 (ms) per img / Xeon Platinum 8259CL (ms) per img
 ![](benchmark/g4dn.png)
 
 > (ms) per img on T4
 ![](benchmark/t4.png)
-
-
-#### 2080ti
-> ratio = 2080ti (ms) / Ryzen 3950x (ms)
-![](benchmark/2080ti.png)

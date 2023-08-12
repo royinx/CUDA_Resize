@@ -32,8 +32,9 @@ def main(input_array: cp.ndarray, resize_shape:tuple):
 
     return output_array, [resize_scale, top_pad, left_pad]
 
-def warm_up():
-    input_array_gpu = cp.ones(shape=(200,1080,1920,3),dtype=np.uint8)
+def warm_up(shape):
+    w,h = shape
+    input_array_gpu = cp.ones(shape=(200,h,w,3),dtype=np.uint8)
     _, _, _, output_array = cuda_resize(input_array_gpu,
                                                                     (128,256),
                                                                     pad=False) # N,W,H,C
@@ -43,8 +44,8 @@ def warm_up():
 if __name__ == "__main__":
     # prepare data
     batch = 100
-    warm_up()
     size = [(3840,2160),(1920,1080), (960,540), (480,270), (240,135), (120,67), (60,33), (30,16)]
+    warm_up(size[0])
     benchmark = pd.DataFrame(columns=[str(size_) for size_ in size],
                              index=[str(size_) for size_ in size])
 
@@ -60,12 +61,13 @@ if __name__ == "__main__":
         for dst_shape in size:
             # CPU benchmark
             cpu_metrics = []
-            start = time.perf_counter()
-            for index in range(0, len(imgs), batch):
-                start = time.perf_counter()
-                cpu_output = [cv2.resize(img,(dst_shape))for img in imgs[index:index+batch]]
-                cpu_metrics.append(time.perf_counter() - start)
-                # cv2.imwrite(f"{index}_output_cpu.jpg", cpu_output[0])
+
+            # start = time.perf_counter()
+            # for index in range(0, len(imgs), batch):
+            #     start = time.perf_counter()
+            #     cpu_output = [cv2.resize(img,(dst_shape))for img in imgs[index:index+batch]]
+            #     cpu_metrics.append(time.perf_counter() - start)
+            #     # cv2.imwrite(f"{index}_output_cpu.jpg", cpu_output[0])
 
             # CUDA benchmark
             cuda_metrics = []
@@ -92,7 +94,9 @@ if __name__ == "__main__":
             cpu_ = sum(cpu_metrics)
             gpu_ = sum(cuda_metrics)
             speedup = cpu_/gpu_
-            benchmark[f"{src_shape}"][f"{dst_shape}"] = speedup
+            # benchmark[f"{src_shape}"][f"{dst_shape}"] = speedup
+
+            benchmark[f"{src_shape}"][f"{dst_shape}"] = gpu_/1000 *1000 * 1000 # sum / batch * ms * us
             # print(f"{src_shape} -> {dst_shape}: \t CPU: {cpu_} \t | CUDA: {gpu_} \t | Speedup: {speedup}")
             # print(benchmark)
         del imgs
