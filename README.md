@@ -78,10 +78,20 @@ Function Working well in pycuda container, you dont need to build OpenCV.
 ### Benchmark
 #### 2080ti
 > ratio = 2080ti (ms) / Ryzen 2700x (ms)
+
 ![](benchmark/2080ti.png)
+
 > time (us/img)
+
 ![](benchmark/2080ti_ms.png)
 
+<details><summary>shared memory</summary>
+
+![](benchmark/smem_1080p.png)
+![](benchmark/smem_4k.png)
+![](benchmark/smem_8k.png)
+
+</details>
 
 #### (Deprecated) [w/o smem] AWS g4dn.xlarge (Tesla T4)
 > ratio = T4 (ms) per img / Xeon Platinum 8259CL (ms) per img
